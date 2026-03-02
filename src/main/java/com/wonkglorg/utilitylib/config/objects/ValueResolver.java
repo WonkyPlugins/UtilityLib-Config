@@ -52,6 +52,7 @@ public class ValueResolver<T, V>{
 	}
 	
 	public void apply(Entity entity, Object value) {
+		if(value == null) return;
 		//noinspection unchecked
 		apply.accept((T) entity, (V) value);
 	}

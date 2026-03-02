@@ -258,6 +258,7 @@ public class Config extends YamlConfiguration{
 	public void setEntity(@NotNull String path, Entity entity) {
 		if(entity == null){
 			set(path, null);
+			return;
 		}
 		set(path, new StoredEntity(entity));
 	}

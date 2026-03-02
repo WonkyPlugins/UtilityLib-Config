@@ -8,22 +8,26 @@ import org.bukkit.Location;
 import org.bukkit.Nameable;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.entity.Ageable;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Sheep;
 import org.bukkit.entity.Villager;
 import org.bukkit.inventory.EquipmentSlot;
+import org.jspecify.annotations.NonNull;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Represents an entities data stored inside a config to restore.
  */
-public class StoredEntity{
-	private final Map<String, Object> data = new HashMap<>();
+public class StoredEntity implements ConfigurationSerializable{
+	private final Map<String, Object> data;
 	private EntityType entityType;
 	/**
 	 * Registered data extracts to serialize entity data
@@ -32,11 +36,13 @@ public class StoredEntity{
 	
 	public StoredEntity(Entity entity) {
 		this.entityType = entity.getType();
+		data = new HashMap<>();
 		extractData(entity);
 	}
 	
 	public StoredEntity(ConfigurationSection section) {
-	
+		entityType = EntityType.valueOf(section.getString("type"));
+		data = (Map<String, Object>) section.get("data", new HashMap<>());
 	}
 	
 	public void spawnEntity(Location location) {
@@ -55,7 +61,9 @@ public class StoredEntity{
 	private void extractData(Entity entity) {
 		for(var resolver : VALUE_RESOLVERS.values()){
 			if(resolver.matches(entity)){
-				data.put(resolver.getKey(), resolver.extract(entity));
+				Object extract = resolver.extract(entity);
+				if(extract == null) continue;
+				data.put(resolver.getKey(), extract);
 			}
 		}
 	}
@@ -73,6 +81,7 @@ public class StoredEntity{
 		registerResolver(create("villager.villagerType", Villager.class::isInstance, Villager::setVillagerType, Villager::getVillagerType));
 		registerResolver(create("creeper.powered", Creeper.class::isInstance, Creeper::setPowered, Creeper::isPowered));
 		registerResolver(create("creeper.ignited", Creeper.class::isInstance, Creeper::setIgnited, Creeper::isIgnited));
+		registerResolver(create("sheep.color", Sheep.class::isInstance, Sheep::setColor, Sheep::getColor));
 		
 		for(var equipment : EquipmentSlot.values()){
 			registerResolver(equipmentResolver("equipment." + equipment.name().toLowerCase(), equipment));
@@ -114,5 +123,13 @@ public class StoredEntity{
 		registerResolver(attributeResolver("attribute.spawn_reinforcements", Attribute.SPAWN_REINFORCEMENTS));
 		registerResolver(attributeResolver("attribute.waypoint_transmit_range", Attribute.WAYPOINT_TRANSMIT_RANGE));
 		registerResolver(attributeResolver("attribute.waypoint_receive_range", Attribute.WAYPOINT_RECEIVE_RANGE));
+	}
+	
+	@Override
+	public @NonNull Map<String, Object> serialize() {
+		Map<String, Object> map = new LinkedHashMap<>();
+		map.put("type", entityType.name());
+		map.put("data", data);
+		return map;
 	}
 }
