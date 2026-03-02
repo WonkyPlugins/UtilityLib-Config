@@ -45,9 +45,10 @@ public class StoredEntity implements ConfigurationSerializable{
 		data = (Map<String, Object>) section.get("data", new HashMap<>());
 	}
 	
-	public void spawnEntity(Location location) {
+	public Entity spawnEntity(Location location) {
 		Entity entity = location.getWorld().spawnEntity(location, entityType);
 		applyChanges(entity);
+		return entity;
 	}
 	
 	private void applyChanges(Entity entity) {
