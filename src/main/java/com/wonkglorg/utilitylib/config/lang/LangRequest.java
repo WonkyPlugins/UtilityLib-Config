@@ -217,6 +217,38 @@ public class LangRequest{
 		return components;
 	}
 	
+	private Component toSingleComponent(Function<String, Component> toComponent, List<String> resultValue) {
+		String first = resultValue.getFirst();
+		if(componentReplacements.isEmpty()){
+			return toComponent.apply(first);
+		}
+		
+		if(pattern == null){
+			pattern = Pattern.compile(componentReplacements.keySet().stream().map(Pattern::quote).collect(Collectors.joining("|")));
+		}
+		Matcher matcher = pattern.matcher(first);
+		
+		List<Component> subComponents = new ArrayList<>();
+		int last = 0;
+		
+		while(matcher.find()){
+			if(matcher.start() > last){
+				subComponents.add(toComponent.apply(first.substring(last, matcher.start())));
+			}
+			
+			String key = matcher.group();
+			subComponents.add(componentReplacements.getOrDefault(key, toComponent.apply(key)));
+			
+			last = matcher.end();
+		}
+		
+		if(last < first.length()){
+			subComponents.add(toComponent.apply(first.substring(last)));
+		}
+		
+		return Component.join(JoinConfiguration.noSeparators(), subComponents);
+	}
+	
 	/**
 	 *
 	 * @param toComponent the converter to use
@@ -231,6 +263,21 @@ public class LangRequest{
 	 */
 	public List<Component> toComponent() {
 		return toComponent(MiniMessage.miniMessage()::deserialize, result);
+	}
+	
+	/**
+	 * @param toComponent the component function
+	 * @return the first line of the config defined value as a component (this cuts off any other lines also specified in the same key, should be used for lines that only have one value it can have.
+	 */
+	public Component toSingleComponent(Function<String, Component> toComponent) {
+		return toSingleComponent(toComponent, result);
+	}
+	
+	/**
+	 * @return the first line of the config defined value as a component (this cuts off any other lines also specified in the same key, should be used for lines that only have one value it can have.
+	 */
+	public Component toSingleComponent() {
+		return toSingleComponent(MiniMessage.miniMessage()::deserialize, result);
 	}
 	
 	/**
