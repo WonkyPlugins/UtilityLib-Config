@@ -326,7 +326,9 @@ public class LangRequest{
 			config = configOptional.get();
 		} else {
 			logger.log(Level.INFO, "No lang file could be loaded for request: " + key + " using default value!");
-			return List.of(defaultValue);
+			List<String> arrayList = new ArrayList<>();
+			arrayList.add(defaultValue);
+			return arrayList;
 		}
 		
 		if(config.isUpdateRequest()){
