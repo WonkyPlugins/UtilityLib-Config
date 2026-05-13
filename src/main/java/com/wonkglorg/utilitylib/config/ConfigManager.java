@@ -10,20 +10,22 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * A Config manager to handle accessing configs.
  *
- * <br>
- * <br>
- * BEFORE USING THIS CLASS MAKE SURE TO CALL {@link ConfigManager#createInstance(JavaPlugin)} TO INITIALIZE THE INSTANCE (only needs to be done once during the whole runtime)
  *
  * @author Wonkglorg
  */
 @SuppressWarnings("unused")
 public final class ConfigManager{
+	/**
+	 * All Config Managers and their plugin registered namespace
+	 */
+	private static final Map<String, ConfigManager> CONFIG_MANAGER_MAP = new ConcurrentHashMap<>();
 	/**
 	 * The Logger instance
 	 */
@@ -37,31 +39,17 @@ public final class ConfigManager{
 	 */
 	private final Map<Class<? extends Config>, Map<String, Config>> configMap = new HashMap<>();
 	
-	private static ConfigManager instance;
-	
 	/**
 	 * Creates a new instance of the LangManager
 	 *
 	 * @param plugin the plugin to create the instance for
 	 * @return the created instance
 	 */
-	public static ConfigManager createInstance(JavaPlugin plugin) {
-		if(instance == null){
-			instance = new ConfigManager(plugin);
+	public static ConfigManager getInstance(JavaPlugin plugin) {
+		if(!CONFIG_MANAGER_MAP.containsKey(plugin.namespace())){
+			CONFIG_MANAGER_MAP.put(plugin.namespace(), new ConfigManager(plugin));
 		}
-		return instance;
-	}
-	
-	/**
-	 * Gets the instance of the LangManager use {@link ConfigManager#createInstance(JavaPlugin)} before to initialize the instance
-	 *
-	 * @return the instance of the LangManager or null if not initialized correctly
-	 */
-	public static ConfigManager instance() {
-		if(instance == null){
-			throw new IllegalStateException("ConfigManager instance has not been initialized!");
-		}
-		return instance;
+		return CONFIG_MANAGER_MAP.get(plugin.namespace());
 	}
 	
 	private ConfigManager(JavaPlugin plugin) {

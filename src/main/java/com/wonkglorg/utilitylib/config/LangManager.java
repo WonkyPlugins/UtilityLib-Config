@@ -19,15 +19,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * A Config manager to handle accessing configs.
- * <br>
- * <br>
- * BEFORE USING THIS CLASS MAKE SURE TO CALL {@link ConfigManager#createInstance(JavaPlugin)} TO INITIALIZE THE INSTANCE  (only needs to be done once during the whole runtime)
+ * A Lang manager to handle retrieving and sending per user translatable messages.
  *
  * @author Wonkglorg
  */
 @SuppressWarnings("unused")
 public final class LangManager{
+	/**
+	 * All Lang Managers and their plugin registered namespace
+	 */
+	private static final Map<String, LangManager> LANG_MANAGER_MAP = new ConcurrentHashMap<>();
+	
 	public static final String NO_LOCALE_FOUND_FOR_FILE = "No locale found for file: ";
 	/**
 	 * The Logger instance
@@ -64,28 +66,20 @@ public final class LangManager{
 	}
 	
 	/**
-	 * Creates a new instance of the LangManager
+	 * Creates a new instance of the LangManager or returns the already registered one for this plugin
 	 *
 	 * @param plugin the plugin to create the instance for
 	 * @return the created instance
 	 */
-	public static LangManager createInstance(JavaPlugin plugin) {
-		if(instance == null){
-			instance = new LangManager(plugin);
+	public static LangManager getInstance(JavaPlugin plugin) {
+		if(!LANG_MANAGER_MAP.containsKey(plugin.namespace())){
+			LANG_MANAGER_MAP.put(plugin.namespace(), new LangManager(plugin));
 		}
-		return instance;
+		return LANG_MANAGER_MAP.get(plugin.namespace());
 	}
 	
-	/**
-	 * Gets the instance of the LangManager use {@link LangManager#createInstance(JavaPlugin)} before to initialize the instance
-	 *
-	 * @return the instance of the LangManager or null if not initialized correctly
-	 */
-	public static LangManager instance() {
-		if(instance == null){
-			throw new IllegalStateException("LangManager instance has not been initialized!");
-		}
-		return instance;
+	public static boolean hasInstance(JavaPlugin plugin) {
+		return LANG_MANAGER_MAP.containsKey(plugin.namespace());
 	}
 	
 	private LangManager(JavaPlugin plugin) {
