@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @SuppressWarnings("unused")
 public class LangRequest{
 	
-	private static final Pattern CONDITIONAL_PATTERN = Pattern.compile("<if:(!?)([a-zA-Z0-9_-]+)>(.*?)((<else>(.*?))?)</if>", Pattern.DOTALL);
+	private static final Pattern CONDITIONAL_PATTERN = Pattern.compile("<if:(!?)([\\w-]+)>(.*?)(?:<else>(.*?))?</if>", Pattern.DOTALL);
 	private final Logger logger;
 	/**
 	 * The lang manager this request was returned by
@@ -302,9 +302,10 @@ public class LangRequest{
 	 * @return resolved string
 	 */
 	private String applyConditionals(String input) {
-		if(conditionals.isEmpty()){ //no conditions to evaluate
+		if(conditionals.isEmpty() || !input.contains("<if:")){
 			return input;
 		}
+		
 		Matcher matcher = CONDITIONAL_PATTERN.matcher(input);
 		StringBuilder builder = new StringBuilder();
 		
@@ -313,7 +314,7 @@ public class LangRequest{
 			String conditionKey = matcher.group(2).toLowerCase(Locale.ROOT);
 			
 			String trueValue = matcher.group(3);
-			String falseValue = matcher.group(6);
+			String falseValue = matcher.group(4);
 			
 			boolean condition = conditionals.getOrDefault(conditionKey, false);
 			
