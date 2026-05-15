@@ -164,6 +164,10 @@ public class LangRequestTest{
 		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
 		langRequest.conditional("isSet",true);
 		Assert.assertEquals(List.of("Found "), langRequest.processRawResult(langRequest.getRawResult()));
+		
+		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<gold>%number%. %user% trades <blue>%item-count% <gray>%item%<gold> for <if:isFree><aqua>Free<else><blue>%price% <gray>%secondary-item%</if>! <gold>(Overfilled)");
+		langRequest.conditional("isFree",true);
+		Assert.assertEquals("<gold>%number%. %user% trades <blue>%item-count% <gray>%item%<gold> for <aqua>Free! <gold>(Overfilled)", langRequest.processRawResult(langRequest.getRawResultSingleLine()));
 	}
 	
 }
