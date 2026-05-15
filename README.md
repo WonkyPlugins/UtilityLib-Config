@@ -90,8 +90,33 @@ a default lang can also be defined to use if no valid lang was found for the des
 ```
 To retrieve a value the Langmanager#request function can be used which determins the best value to return based on inputs and allows further modifying the request.
 
+Code
 ```java
-   lang.request("command-givehead-inventory-full").replace("%target%", target.getName()).sendToAudience(sender);
+   lang.request("command.givehead.inventory-full").replace("%target%", target.getName()).sendToAudience(sender);
+```
+Config
+```yml
+command:
+  givehead:
+    inventory-fill: The inventory of %target% is full.
+```
+
+
+Conditional values can be used to adjust the flow
+
+Code
+```java
+   boolean hasTarget = target != null;
+   lang.request("command-givehead-inventory-full")
+                .replace("%target%", hasTarget ? target.getName():null)
+                .conditional("hasTarget",hasTarget)
+                .sendToAudience(sender);
+```
+Config
+```yml
+command:
+  givehead:
+    inventory-full: <if:hasTarget>The inventory of %target% is full.<else>Invalid Target!</if>
 ```
 
 * Config Manager
