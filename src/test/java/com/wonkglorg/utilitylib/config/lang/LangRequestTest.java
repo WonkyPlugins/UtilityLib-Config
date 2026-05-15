@@ -154,6 +154,11 @@ public class LangRequestTest{
 		Assert.assertEquals(List.of("Found Nothing"), langRequest.processRawResult(langRequest.getRawResult()));
 		langRequest.conditional("isSet",true);
 		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
+		
+		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found <if:isSet>Value %placeholder%</if>");
+		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
+		langRequest.conditional("isSet",false);
+		Assert.assertEquals(List.of("Found "), langRequest.processRawResult(langRequest.getRawResult()));
 	}
 	
 }
