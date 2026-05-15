@@ -142,6 +142,7 @@ public class LangRequest{
 	
 	public LangRequest replace(String value, Component replacement) {
 		if(replacement == null) return this;
+		//invalidate pattern if one was already generated
 		pattern = null;
 		componentReplacements.put(value, replacement);
 		return this;

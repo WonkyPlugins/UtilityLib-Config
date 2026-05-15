@@ -135,6 +135,25 @@ public class LangRequestTest{
 		Mockito.when(config.contains("test-key")).thenReturn(true);
 		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found Value %placeholder%");
 		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
-
 	}
+	
+	@Test
+	public void canReplaceConditionals() {
+		LangManager langManager = Mockito.mock(LangManager.class);
+		LangConfig config = Mockito.mock(LangConfig.class);
+		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "test-key", "Nothing Found")
+				.replace("%placeholder%","Resolved");
+		
+		//return element found
+		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
+		Mockito.when(config.contains("test-key")).thenReturn(true);
+		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found <if:isSet>Value %placeholder%<else>Nothing</if>");
+		//not flags were so don't process this besides placeholder replacements
+		Assert.assertEquals(List.of("Found <if:isSet>Value Resolved<else>Nothing</if>"), langRequest.processRawResult(langRequest.getRawResult()));
+		langRequest.conditional("isSet",false);
+		Assert.assertEquals(List.of("Found Nothing"), langRequest.processRawResult(langRequest.getRawResult()));
+		langRequest.conditional("isSet",true);
+		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
+	}
+	
 }
