@@ -6,7 +6,7 @@
 
     <groupId>com.wonkglorg</groupId>
     <artifactId>UtilityLibConfig</artifactId>
-    <version>3.0.0</version>
+    <version>3.1.0</version>
     <packaging>jar</packaging>
 
     <name>UtilityLibConfig</name>
@@ -69,6 +69,18 @@
             <artifactId>annotations</artifactId>
             <version>24.0.0</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.23.0</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>
