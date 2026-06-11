@@ -103,7 +103,7 @@ public final class LangManager{
 	 * @param defaultLang the default language
 	 * @param defaultConfig the default config
 	 */
-	public synchronized void setDefaultLang(Locale defaultLang, LangConfig defaultConfig) {
+	public synchronized void setDefaultLang(LangConfig defaultConfig, Locale defaultLang) {
 		langMap.put(defaultLang, defaultConfig);
 		this.defaultLang = defaultLang;
 		defaultConfig.silentLoad();

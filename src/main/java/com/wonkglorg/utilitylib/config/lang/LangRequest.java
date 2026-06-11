@@ -1,6 +1,8 @@
 package com.wonkglorg.utilitylib.config.lang;
 
 import com.wonkglorg.utilitylib.config.LangManager;
+import com.wonkglorg.utilitylib.config.lang.parser.BooleanConditionParser;
+import com.wonkglorg.utilitylib.config.lang.parser.MathParser;
 import com.wonkglorg.utilitylib.config.types.LangConfig;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
@@ -27,7 +29,10 @@ import java.util.stream.Collectors;
 @SuppressWarnings("unused")
 public class LangRequest{
 	
-	private static final Pattern CONDITIONAL_PATTERN = Pattern.compile("<if:(!?)([\\w-]+)>(.*?)(?:<else>(.*?))?</if>", Pattern.DOTALL);
+	private static final Pattern CONDITIONAL_PATTERN = Pattern.compile("<if:(.*?)>(.*?)(?:<else>(.*?))?</if>", Pattern.DOTALL);
+	
+	private static final Pattern MATH_PATTERN = Pattern.compile("<math>(.*?)</math>");
+	
 	private final Logger logger;
 	/**
 	 * The lang manager this request was returned by
@@ -45,10 +50,6 @@ public class LangRequest{
 	 * The defaultValue used for the initial request
 	 */
 	private final String defaultValue;
-	/**
-	 * Any registered conditionals that should be parsed by the lang
-	 */
-	private final Map<String, Boolean> conditionals = new HashMap<>();
 	/**
 	 * Map of all replacements applied to this request
 	 */
@@ -78,24 +79,21 @@ public class LangRequest{
 	}
 	
 	/**
-	 * Adds a conditional value to the request resolver
-	 *
-	 * @param key the key of the condition
+	 * Replaces the given value with its replacement
 	 */
-	public LangRequest conditional(String key, boolean value) {
-		conditionals.put(key.toLowerCase(Locale.ROOT), value);
+	public LangRequest replace(String value, String replacement) {
+		if(replacement == null){
+			replacement = "null";
+		}
+		replacements.put(value, replacement);
 		return this;
 	}
 	
 	/**
 	 * Replaces the given value with its replacement
 	 */
-	public LangRequest replace(String value, String replacement) {
-		if(replacement == null){
-			replacement = "";
-		}
-		replacements.put(value, replacement);
-		return this;
+	public LangRequest replace(String value, boolean replacement) {
+		return replace(value, String.valueOf(replacement));
 	}
 	
 	/**
@@ -141,7 +139,9 @@ public class LangRequest{
 	}
 	
 	public LangRequest replace(String value, Component replacement) {
-		if(replacement == null) return this;
+		if(replacement == null){
+			return this;
+		}
 		//invalidate pattern if one was already generated
 		pattern = null;
 		componentReplacements.put(value, replacement);
@@ -228,12 +228,13 @@ public class LangRequest{
 	 * Resolves any conditionals and placeholders in the input string (does not resolve component replacements)
 	 */
 	public String processRawResult(String toResolve) {
-		toResolve = applyConditionals(toResolve);
-		return applyPlaceHolders(toResolve);
+		toResolve = applyPlaceHolders(toResolve);
+		toResolve = applyMath(toResolve);
+		return applyConditionals(toResolve);
 	}
 	
 	/**
-	 * Resolves any conditionals and placeholders in the input (does not resolve component replacements)
+	 * Resolves any conditionals, math and placeholders in the input (does not resolve component replacements)
 	 */
 	public List<String> processRawResult(List<String> toResolve) {
 		toResolve.replaceAll(this::processRawResult);
@@ -242,6 +243,42 @@ public class LangRequest{
 	
 	public Locale getLocale() {
 		return locale;
+	}
+	
+	/**
+	 * Resolve any math operations defined in this input
+	 *
+	 * @param input the input to check
+	 * @return any math operations resolved on this input
+	 */
+	private String applyMath(String input) {
+		Matcher matcher = MATH_PATTERN.matcher(input);
+		StringBuilder builder = new StringBuilder();
+		
+		while(matcher.find()){
+			String expression = matcher.group(1).trim();
+			
+			String result;
+			try{
+				result = formatNumber(evaluateExpression(expression));
+			} catch(Exception ex){
+				logger.warning("Failed to evaluate math expression: " + expression);
+				result = "!INVALID_OPERATION!";
+			}
+			
+			matcher.appendReplacement(builder, Matcher.quoteReplacement(result));
+		}
+		
+		matcher.appendTail(builder);
+		return builder.toString();
+	}
+	
+	private double evaluateExpression(String expression) {
+		return new MathParser(expression).parse();
+	}
+	
+	private boolean evaluateCondition(String input) {
+		return new BooleanConditionParser(input).parse();
 	}
 	
 	/**
@@ -302,34 +339,106 @@ public class LangRequest{
 	 * @return resolved string
 	 */
 	private String applyConditionals(String input) {
-		if(conditionals.isEmpty() || !input.contains("<if:")){
+		int start = input.indexOf("[if:");
+		
+		if(start == -1){
 			return input;
 		}
 		
-		Matcher matcher = CONDITIONAL_PATTERN.matcher(input);
-		StringBuilder builder = new StringBuilder();
+		int conditionEnd = input.indexOf("]", start);
 		
-		while(matcher.find()){
-			boolean negate = !matcher.group(1).isEmpty();
-			String conditionKey = matcher.group(2).toLowerCase(Locale.ROOT);
-			
-			String trueValue = matcher.group(3);
-			String falseValue = matcher.group(4);
-			
-			boolean condition = conditionals.getOrDefault(conditionKey, false);
-			
-			if(negate){
-				condition = !condition;
-			}
-			
-			String replacement = condition ? trueValue : (falseValue != null ? falseValue : "");
-			
-			matcher.appendReplacement(builder, Matcher.quoteReplacement(replacement));
+		if(conditionEnd == -1){
+			return input;
 		}
 		
-		matcher.appendTail(builder);
+		String condition = input.substring(start + 4, conditionEnd);
 		
-		return builder.toString();
+		int depth = 1;
+		int pos = conditionEnd + 1;
+		
+		int elsePos = -1;
+		int endPos = -1;
+		
+		while(pos < input.length()){
+			
+			int nextIf = input.indexOf("[if:", pos);
+			int nextElse = input.indexOf("[else]", pos);
+			int nextEnd = input.indexOf("[/if]", pos);
+			
+			int next = minPositive(nextIf, nextElse, nextEnd);
+			
+			if(next == -1){
+				break;
+			}
+			
+			if(next == nextIf){
+				depth++;
+				pos = nextIf + 4;
+			} else if(next == nextEnd){
+				depth--;
+				
+				if(depth == 0){
+					endPos = nextEnd;
+					break;
+				}
+				
+				pos = nextEnd + 5;
+			} else {
+				if(depth == 1 && elsePos == -1){
+					elsePos = nextElse;
+				}
+				
+				pos = nextElse + 6;
+			}
+		}
+		
+		if(endPos == -1){
+			return input;
+		}
+		
+		String trueBranch;
+		String falseBranch;
+		
+		if(elsePos == -1){
+			trueBranch = input.substring(conditionEnd + 1, endPos);
+			falseBranch = "";
+		} else {
+			trueBranch = input.substring(conditionEnd + 1, elsePos);
+			falseBranch = input.substring(elsePos + 6, endPos);
+		}
+		
+		boolean result;
+		
+		try{
+			result = evaluateCondition(condition);
+		} catch(Exception ex){
+			logger.warning("Failed conditional '" + condition + "': " + ex.getMessage());
+			result = false;
+		}
+		
+		String replacement = result ? trueBranch : falseBranch;
+		
+		replacement = applyConditionals(replacement);
+		
+		String rebuilt = input.substring(0, start) + replacement + input.substring(endPos + 5);
+		
+		return applyConditionals(rebuilt);
+	}
+	
+	private static int minPositive(int... values) {
+		int min = -1;
+		
+		for(int value : values){
+			if(value == -1){
+				continue;
+			}
+			
+			if(min == -1 || value < min){
+				min = value;
+			}
+		}
+		
+		return min;
 	}
 	
 	/**
@@ -429,5 +538,14 @@ public class LangRequest{
 		} else {
 			toComponent(toComponent).forEach(audience::sendMessage);
 		}
+	}
+	
+	private String formatNumber(double value) {
+		
+		if(value == (long) value){
+			return String.valueOf((long) value);
+		}
+		
+		return String.valueOf(value);
 	}
 }
