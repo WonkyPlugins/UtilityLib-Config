@@ -1,11 +1,14 @@
 package com.wonkglorg.utilitylib.config.types;
 
+import com.wonkglorg.utilitylib.config.provider.PluginResourceProvider;
+import com.wonkglorg.utilitylib.config.provider.ResourceProvider;
+import lombok.Setter;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,79 +23,50 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import static java.util.logging.Logger.getLogger;
 
 /**
  * @author Wonkglorg
  */
 @SuppressWarnings({"unused", "ResultOfMethodCallIgnored"})
 public class Config extends YamlConfiguration{
-	protected final JavaPlugin plugin;
-	protected final String name;
-	protected final Path sourcePath;
-	protected final Path destinationPath;
+	private static final ResourceProvider DUMMY_PROVIDER = () -> null;
+	protected final Path path;
 	protected final File file;
-	protected final Logger logger;
+	protected final @NotNull ResourceProvider resourceProvider;
+	@Setter
+	protected Logger logger = Logger.getLogger(Config.class.getName());
 	
 	/**
 	 * Creates a new file at the specified location or copies an existing one from the resource folder based on the sourcePath,
-	 * if nothing could be found in the sourcePath it creates a new one. DestinationPath will automatically point to the plugin data folder.
+	 * if nothing could be found in the sourcePath it creates a new file at the destination. DestinationPath starts relative to execution path.
 	 *
-	 * @param plugin plugin instance
-	 * @param sourcePath path inside the resources folder of your plugin
-	 * @param destinationPath path to copy this file to
+	 * @param path path to copy this file to
+	 * @param resourceProvider how to access the provided resource to copy from
 	 */
-	public Config(@NotNull JavaPlugin plugin, @NotNull Path sourcePath, @NotNull Path destinationPath) {
-		this.plugin = plugin;
-		this.name = destinationPath.getFileName().toString();
-		this.sourcePath = sourcePath;
-		this.destinationPath = destinationPath.startsWith(plugin.getDataFolder().toString()) ? destinationPath : Path.of(plugin.getDataFolder()
-																															   .toString(),
-				destinationPath.toString());
-		logger = plugin.getLogger();
-		file = new File(this.destinationPath.toString());
+	public Config(@NotNull Path path, @NotNull ResourceProvider resourceProvider) {
+		this.path = path;
+		this.resourceProvider = resourceProvider;
+		file = new File(this.path.toString());
 		silentLoad();
+		syncWithDefaults();
 	}
 	
 	/**
-	 * Creates a new file at the specified location or copies an existing one from the resource folder based on the name,
-	 * if nothing could be found in the resource folder it creates a new one. name will automatically point to the base of the plugin data folder
+	 * Loads a file from the specified location inside the plugins data folder, or tries loading it from the plugins jar from the same position if one exists otherwise create a new file
 	 *
-	 * @param plugin plugin instance
-	 * @param name Both the name for destination and source
+	 * @param path path of the file to load
 	 */
-	public Config(@NotNull JavaPlugin plugin, @NotNull String name) {
-		this(plugin, Path.of(name), Path.of(plugin.getDataFolder().getPath(), name));
+	public Config(@NotNull Plugin plugin, @NotNull Path path) {
+		this(plugin.getDataPath().resolve(path), new PluginResourceProvider(plugin, path));
 	}
 	
 	/**
-	 * Creates a new file at the specified location or copies an existing one from the resource folder based on the path,
-	 * if nothing could be found in the resource folder it creates a new one. path will automatically point to the base of the plugin data folder
+	 * Loads a file from the specified location (creates one if non exists)
 	 *
-	 * @param plugin plugin instance
-	 * @param path both the source and destination path
+	 * @param path path of the file to load
 	 */
-	public Config(@NotNull JavaPlugin plugin, @NotNull Path path) {
-		this(plugin, path, Path.of(plugin.getDataFolder().getPath(), path.toString()));
-	}
-	
-	private Config(@NotNull Path sourcePath) {
-		this.plugin = null;
-		this.name = sourcePath.getFileName().toString();
-		this.sourcePath = sourcePath;
-		this.destinationPath = null;
-		this.file = sourcePath.toFile();
-		this.logger = getLogger("Config");
-		silentLoad();
-	}
-	
-	/**
-	 * This does not save the resource into the plugin dir but references one from a third location
-	 *
-	 * @param path the
-	 */
-	public static Config fromExternalPath(@NotNull Path path) {
-		return new Config(path);
+	public Config(@NotNull Path path) {
+		this(path, DUMMY_PROVIDER);
 	}
 	
 	/**
@@ -158,16 +132,16 @@ public class Config extends YamlConfiguration{
 	 * Add all values from the default config to the existing one if not present
 	 */
 	public void syncWithDefaults() {
-		if(plugin == null) return; // external configs have no defaults
-		
-		InputStream resource = plugin.getResource(sourcePath.toString().replace(File.separatorChar, '/'));
-		if(resource == null) return;
+		InputStream resource = resourceProvider.getResource();
+		if(resource == null){
+			return;
+		}
 		
 		YamlConfiguration defConfig = new YamlConfiguration();
 		try{
 			defConfig.loadFromString(new String(resource.readAllBytes()));
 		} catch(IOException | InvalidConfigurationException e){
-			logger.log(Level.SEVERE, "Failed to load default config for " + name, e);
+			logger.log(Level.SEVERE, "Failed to load default config for " + path, e);
 			return;
 		}
 		
@@ -182,7 +156,7 @@ public class Config extends YamlConfiguration{
 		
 		if(changed){
 			silentSave();
-			logger.log(Level.INFO, "Updated config " + name + " with missing default values.");
+			logger.log(Level.INFO, "Updated config " + path + " with missing default values.");
 		}
 	}
 	
@@ -190,10 +164,10 @@ public class Config extends YamlConfiguration{
 		try{
 			checkFile();
 			load(file);
-			logger.log(Level.INFO, "Loaded data from " + name + "!");
+			logger.log(Level.INFO, "Loaded data from " + path + "!");
 		} catch(InvalidConfigurationException | IOException e){
 			logger.log(Level.SEVERE, e.getMessage());
-			logger.log(Level.WARNING, "Error loading data from " + name + "!");
+			logger.log(Level.WARNING, "Error loading data from " + path + "!");
 		}
 	}
 	
@@ -203,7 +177,7 @@ public class Config extends YamlConfiguration{
 			load(file);
 		} catch(InvalidConfigurationException | IOException e){
 			logger.log(Level.SEVERE, e.getMessage());
-			logger.log(Level.WARNING, "Error loading data from " + name + "!");
+			logger.log(Level.WARNING, "Error loading data from " + path + "!");
 		}
 	}
 	
@@ -211,10 +185,10 @@ public class Config extends YamlConfiguration{
 		try{
 			checkFile();
 			save(file);
-			logger.log(Level.INFO, "Saved data to " + name + "!");
+			logger.log(Level.INFO, "Saved data to " + path + "!");
 		} catch(IOException e){
 			logger.log(Level.SEVERE, e.getMessage());
-			logger.log(Level.WARNING, "Error saving data to " + name + "!");
+			logger.log(Level.WARNING, "Error saving data to " + path + "!");
 		}
 	}
 	
@@ -223,17 +197,9 @@ public class Config extends YamlConfiguration{
 			checkFile();
 			save(file);
 		} catch(IOException e){
-			logger.log(Level.WARNING, "Error saving data to " + name + "!");
+			logger.log(Level.WARNING, "Error saving data to " + path + "!");
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}
-	}
-	
-	public String name() {
-		return name;
-	}
-	
-	public String path() {
-		return destinationPath.toString();
 	}
 	
 	/**
@@ -241,24 +207,25 @@ public class Config extends YamlConfiguration{
 	 */
 	protected void checkFile() throws NoSuchFileException {
 		if(!file.exists()){
-			if(destinationPath == null){
-				throw new NoSuchFileException("External Resource does not exist!");
+			if(path == null){
+				throw new NoSuchFileException("No Destination path has been provided!!");
 			}
 			
 			file.getParentFile().mkdirs();
-			InputStream inputStream = plugin.getResource(sourcePath.toString().replace(File.separatorChar, '/'));
-			if(inputStream != null){
+			
+			InputStream resource = resourceProvider.getResource();
+			if(resource != null){
 				try{
-					Files.copy(inputStream, destinationPath);
+					Files.copy(resource, path);
 				} catch(IOException e){
-					logger.log(Level.SEVERE, "Error Copying data from " + sourcePath + " to destination " + destinationPath);
+					logger.log(Level.SEVERE, "Error Copying data from " + resourceProvider + " to destination " + path);
 					logger.log(Level.SEVERE, e.getMessage(), e);
 				}
 			} else {
 				try{
 					file.createNewFile();
 				} catch(IOException e){
-					throw new IllegalStateException("Cannot create file " + sourcePath + "!", e);
+					throw new IllegalStateException("Cannot create file at " + path + "!", e);
 				}
 			}
 		}
@@ -266,7 +233,7 @@ public class Config extends YamlConfiguration{
 	
 	@Override
 	public String toString() {
-		return String.format("ConfigYML[path=%s,name=%s]", destinationPath.toString(), name);
+		return String.format("ConfigYML[path=%s]", path);
 	}
 	
 }

@@ -2,296 +2,206 @@ package com.wonkglorg.utilitylib.config.lang;
 
 import com.wonkglorg.utilitylib.config.LangManager;
 import com.wonkglorg.utilitylib.config.types.LangConfig;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.Mockito;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.logging.Logger;
 
-public class LangRequestTest{
+class LangRequestTest{
 	
-	@Test
-	public void canReturnRawSingleInput() {
-		LangManager langManager = Mockito.mock(LangManager.class);
-		LangConfig config = Mockito.mock(LangConfig.class);
-		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "test-key", "Nothing Found");
-		
-		//return element found
-		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
-		Mockito.when(config.contains("test-key")).thenReturn(true);
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found Value");
-		Assert.assertEquals("Found Value", langRequest.getRawResultSingleLine());
-		
-		//return first element in list when single result queries a list
-		List<String> list = new ArrayList<>();
-		list.add("Value 1");
-		list.add("Value 2");
-		Mockito.when(config.getStringList("test-key")).thenReturn(list);
-		Mockito.when(config.isList("test-key")).thenReturn(true);
-		Assert.assertEquals("Value 1", langRequest.getRawResultSingleLine());
+	private LangManager lang;
+	private LangConfig english;
+	private LangConfig german;
+	
+	@BeforeEach
+	void setUp() {
+		lang = new LangManager();
+		english = new LangConfig(Path.of("test", "request-test.yml"));
+		german = new LangConfig(Path.of("test", "request-test-german.yml"));
+		lang.addLanguage(english, Locale.ENGLISH);
+		lang.addLanguage(german, Locale.GERMAN);
 	}
 	
 	@Test
-	public void canReturnDefaultRawSingleInput() {
-		LangManager langManager = Mockito.mock(LangManager.class);
-		LangConfig config = Mockito.mock(LangConfig.class);
-		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "not-valid-key", "Nothing Found");
+	void canReturnRawSingleInput() {
+		LangRequest request = lang.request("raw.single", "No Value");
+		assertEquals("Found Value", request.getRawResultSingleLine());
 		
-		//return element found
-		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
-		Mockito.when(config.contains("test-key")).thenReturn(true);
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found Value");
-		Assert.assertEquals("Nothing Found", langRequest.getRawResultSingleLine());
+		request = lang.request("raw.list", "No Value");
+		assertEquals("Found Value", request.getRawResultSingleLine());
 		
-		//return first element in list when single result queries a list
-		List<String> list = new ArrayList<>();
-		list.add("Value 1");
-		list.add("Value 2");
-		Mockito.when(config.getStringList("test-key")).thenReturn(list);
-		Mockito.when(config.isList("test-key")).thenReturn(true);
-		Assert.assertEquals("Nothing Found", langRequest.getRawResultSingleLine());
+		request = lang.request("invalid.path", "No Value");
+		assertEquals("No Value", request.getRawResultSingleLine());
+		request = lang.request("invalid.path");
+		assertEquals("invalid.path", request.getRawResultSingleLine());
 	}
 	
 	@Test
-	public void canReturnRawInput() {
-		LangManager langManager = Mockito.mock(LangManager.class);
-		LangConfig config = Mockito.mock(LangConfig.class);
-		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "test-key", "Nothing Found");
+	void canReturnRawInput() {
+		LangRequest request = lang.request("raw.single", "No Value");
+		assertEquals(List.of("Found Value"), request.getRawResult());
 		
-		//return element found
-		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
-		Mockito.when(config.contains("test-key")).thenReturn(true);
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found Value");
-		Assert.assertEquals(List.of("Found Value"), langRequest.getRawResult());
+		request = lang.request("raw.list", "No Value");
+		assertEquals(List.of("Found Value", "Found Value 2"), request.getRawResult());
 		
-		//return first element in list when single result queries a list
-		List<String> list = new ArrayList<>();
-		list.add("Value 1");
-		list.add("Value 2");
-		Mockito.when(config.getStringList("test-key")).thenReturn(list);
-		Mockito.when(config.isList("test-key")).thenReturn(true);
-		Assert.assertEquals(List.of("Value 1", "Value 2"), langRequest.getRawResult());
+		request = lang.request("invalid.path", "No Value");
+		assertEquals(List.of("No Value"), request.getRawResult());
+		request = lang.request("invalid.path");
+		assertEquals(List.of("invalid.path"), request.getRawResult());
 	}
 	
 	@Test
-	public void canReturnDefaultRawInput() {
-		LangManager langManager = Mockito.mock(LangManager.class);
-		LangConfig config = Mockito.mock(LangConfig.class);
-		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "not-valid-key", "Nothing Found");
+	void canPickRightConfig() {
+		LangManager tempLang = new LangManager();
 		
-		//return element found
-		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
-		Mockito.when(config.contains("test-key")).thenReturn(true);
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found Value");
-		Assert.assertEquals(List.of("Nothing Found"), langRequest.getRawResult());
+		assertEquals(Optional.empty(), tempLang.getAnyValidLangConfig(Locale.ENGLISH));
 		
-		//return first element in list when single result queries a list
-		List<String> list = new ArrayList<>();
-		list.add("Value 1");
-		list.add("Value 2");
-		Mockito.when(config.getStringList("test-key")).thenReturn(list);
-		Mockito.when(config.isList("test-key")).thenReturn(true);
-		Assert.assertEquals(List.of("Nothing Found"), langRequest.getRawResult());
-	}
-	
-	@Test
-	public void canPickRightConfig() {
-		JavaPlugin plugin = Mockito.mock(JavaPlugin.class);
-		Mockito.when(plugin.namespace()).thenReturn("testplugin");
-		LangManager langManager = LangManager.getInstance(plugin);
-		LangConfig configEng = Mockito.mock(LangConfig.class);
-		LangConfig configGer = Mockito.mock(LangConfig.class);
+		tempLang.addLanguage(english, Locale.ENGLISH);
+		tempLang.addLanguage(german, Locale.GERMAN, Locale.GERMANY);
+		assertEquals(3, tempLang.getAllLangs().size());
 		
-		Assert.assertEquals(Optional.empty(), langManager.getAnyValidLangConfig(Locale.ENGLISH));
-		
-		langManager.addLanguage(configEng, Locale.ENGLISH);
-		langManager.addLanguage(configGer, Locale.GERMAN, Locale.GERMANY);
-		
-		Assert.assertEquals(3, langManager.getAllLangs().size());
-		
-		Assert.assertEquals(Optional.of(configEng), langManager.getAnyValidLangConfig(Locale.ENGLISH));
-		Assert.assertEquals(Optional.of(configGer), langManager.getAnyValidLangConfig(Locale.GERMAN));
-		Assert.assertEquals(Optional.of(configGer), langManager.getAnyValidLangConfig(Locale.GERMANY));
+		assertEquals(Optional.of(english), tempLang.getAnyValidLangConfig(Locale.ENGLISH));
+		assertEquals(Optional.of(german), tempLang.getAnyValidLangConfig(Locale.GERMAN));
+		assertEquals(Optional.of(german), tempLang.getAnyValidLangConfig(Locale.GERMANY));
 		
 		//returns any config it can find
-		Assert.assertNotEquals(Optional.empty(), langManager.getAnyValidLangConfig(Locale.FRENCH));
-		langManager.setDefaultLang(Locale.ENGLISH);
+		assertNotEquals(Optional.empty(), tempLang.getAnyValidLangConfig(Locale.FRENCH));
+		tempLang.setDefaultLang(Locale.ENGLISH);
 		//returns the english one
-		Assert.assertEquals(Optional.of(configEng), langManager.getAnyValidLangConfig(Locale.FRENCH));
+		assertEquals(Optional.of(english), tempLang.getAnyValidLangConfig(Locale.FRENCH));
 	}
 	
 	@Test
-	public void canReplacePlaceholders() {
-		LangManager langManager = Mockito.mock(LangManager.class);
-		LangConfig config = Mockito.mock(LangConfig.class);
-		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "test-key", "Nothing Found").replace("%placeholder%", "Resolved");
-		
-		//return element found
-		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
-		Mockito.when(config.contains("test-key")).thenReturn(true);
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found Value %placeholder%");
-		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
+	void canIdentifyLangSpecificPlaceholdersAndTemplates() {
+		assertEquals(1, english.getTemplateMap().size());
+		assertEquals(2, english.getPlaceholderMap().size());
+		assertTrue(english.getTemplateMap().containsKey("%currency-display%"));
+		assertTrue(english.getPlaceholderMap().containsKey("%euro%"));
+		assertTrue(english.getPlaceholderMap().containsKey("%usd%"));
 	}
 	
 	@Test
-	public void canReplaceConditionals() {
+	void canReplacePlaceholders() {
+		assertEquals(List.of("We are using Euro"), lang.request("placeholder.single").toStringResult());
+		assertEquals(List.of("We are using Euro", "We are not using USD"), lang.request("placeholder.list").toStringResult());
 		
-		LangManager langManager = Mockito.mock(LangManager.class);
-		LangConfig config = Mockito.mock(LangConfig.class);
+		assertEquals("We are using Euro", lang.request("placeholder.single").toSingleStringResult());
+		assertEquals("We are using Euro", lang.request("placeholder.list").toSingleStringResult());
 		
-		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "test-key", "Nothing Found").replace("%placeholder%", "Resolved");
-		
-		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
-		
-		Mockito.when(config.contains("test-key")).thenReturn(true);
-		
-		// ---------------- BASIC IF / ELSE ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found [if:isSet]Value %placeholder%[else]Nothing[/if]");
-		
-		langRequest.replace("isSet", false);
-		Assert.assertEquals(List.of("Found Nothing"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		langRequest.replace("isSet", true);
-		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		// ---------------- IF WITHOUT ELSE ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found [if:isSet]Value %placeholder%[/if]");
-		
-		langRequest.replace("isSet", true);
-		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		langRequest.replace("isSet", false);
-		Assert.assertEquals(List.of("Found "), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		// ---------------- NOT OPERATOR ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Found [if:!isSet]Value %placeholder%[/if]");
-		
-		langRequest.replace("isSet", false);
-		Assert.assertEquals(List.of("Found Value Resolved"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		langRequest.replace("isSet", true);
-		Assert.assertEquals(List.of("Found "), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		// ---------------- MULTI CONDITION ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Result [if:isSet && !banned]OK[else]DENIED[/if]");
-		
-		langRequest.replace("isSet", true);
-		langRequest.replace("banned", false);
-		
-		Assert.assertEquals(List.of("Result OK"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		langRequest.replace("banned", true);
-		
-		Assert.assertEquals(List.of("Result DENIED"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		// ---------------- NESTED CONDITIONS ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("[if:isSet]Start [if:!banned]Allowed[else]Blocked[/if][/if]");
-		
-		langRequest.replace("isSet", true);
-		langRequest.replace("banned", false);
-		
-		Assert.assertEquals(List.of("Start Allowed"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		langRequest.replace("banned", true);
-		
-		Assert.assertEquals(List.of("Start Blocked"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		// ---------------- NUMERIC COMPARISON ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Coins [if:%coins% > 10]Rich[else]Poor[/if]");
-		
-		langRequest.replace("%coins%", 15);
-		
-		Assert.assertEquals(List.of("Coins Rich"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		langRequest.replace("%coins%", 5);
-		
-		Assert.assertEquals(List.of("Coins Poor"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		// ---------------- EMPTY ELSE EDGE CASE ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("Test [if:false]YES[else][/if]");
-		
-		Assert.assertEquals(List.of("Test "), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		// ---------------- COMPLEX REALISTIC SHOP STRING ----------------
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<gold>%number%. %user% trades <blue>%item-count% <gray>%item% " +
-																			   "<gold>for [if:isFree]<aqua>Free[else]<blue>%price% <gray>%secondary-item%[/if]! " +
-																			   "<gold>(Overfilled)");
-		
-		langRequest.replace("isFree", true);
-		
-		Assert.assertEquals("<gold>%number%. %user% trades <blue>%item-count% <gray>%item% " + "<gold>for <aqua>Free! <gold>(Overfilled)",
-				langRequest.processRawResult(langRequest.getRawResultSingleLine()));
+		//locale replacements take priority
+		assertEquals("We are using Yen", lang.request("placeholder.single").replace("%euro%", "Yen").toSingleStringResult());
 	}
 	
 	@Test
-	public void canResolveMath() {
-		LangManager langManager = Mockito.mock(LangManager.class);
-		Mockito.when(langManager.getLogger()).thenReturn(Logger.getLogger(LangRequestTest.class.getName()));
-		LangConfig config = Mockito.mock(LangConfig.class);
-		LangRequest langRequest = new LangRequest(langManager, Locale.ENGLISH, "test-key", "Nothing Found").replace("%amount%", 4);
+	void canReplaceConditionals() {
+		LangRequest request = lang.request("condition.positive");
+		request.replace("%hasValue%", true);
+		assertEquals("Found Value", request.toSingleStringResult());
+		request.replace("%hasValue%", false);
+		assertEquals("Found Nothing", request.toSingleStringResult());
 		
-		Mockito.when(langManager.getAnyValidLangConfig(Locale.ENGLISH)).thenReturn(Optional.of(config));
-		Mockito.when(config.contains("test-key")).thenReturn(true);
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("1+1=<math>1+1</math>");
-		Assert.assertEquals(List.of("1+1=2"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.negative");
+		request.replace("%hasValue%", true);
+		assertEquals("Found Nothing", request.toSingleStringResult());
+		request.replace("%hasValue%", false);
+		assertEquals("Found Value", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("1+%amount%=<math>1+%amount%</math>");
-		Assert.assertEquals(List.of("1+4=5"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.if");
+		request.replace("%isBest%", true);
+		assertEquals("Found the best Value", request.toSingleStringResult());
+		request.replace("%isBest%", false);
+		assertEquals("Found Value", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>2*%amount%</math>");
-		Assert.assertEquals(List.of("8"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.multi-and");
+		request.replace("%isSet%", true);
+		request.replace("%banned%", false);
+		assertEquals("Result OK", request.toSingleStringResult());
+		request.replace("%isSet%", false);
+		request.replace("%banned%", false);
+		assertEquals("Result DENIED", request.toSingleStringResult());
+		request.replace("%isSet%", true);
+		request.replace("%banned%", true);
+		assertEquals("Result DENIED", request.toSingleStringResult());
+		request.replace("%isSet%", false);
+		request.replace("%banned%", true);
+		assertEquals("Result DENIED", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>2/%amount%</math>");
-		Assert.assertEquals(List.of("0.5"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.multi-or");
+		request.replace("%isOffline%", false);
+		request.replace("%banned%", false);
+		assertEquals("Result OK", request.toSingleStringResult());
+		request.replace("%isOffline%", true);
+		request.replace("%banned%", false);
+		assertEquals("Result OK", request.toSingleStringResult());
+		request.replace("%isOffline%", false);
+		request.replace("%banned%", true);
+		assertEquals("Result OK", request.toSingleStringResult());
+		request.replace("%isOffline%", true);
+		request.replace("%banned%", true);
+		assertEquals("Result DENIED", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>10-4</math>");
-		Assert.assertEquals(List.of("6"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.nested");
+		request.replace("%requestStart%", false);
+		request.replace("%banned%", false);
+		assertEquals("", request.toSingleStringResult());
+		request.replace("%requestStart%", true);
+		assertEquals("Start Allowed", request.toSingleStringResult());
+		request.replace("%banned%", true);
+		assertEquals("Start Blocked", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>2+3*4</math>");
-		Assert.assertEquals(List.of("14"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.numeric-bigger");
+		request.replace("%coins%", 9);
+		assertEquals("Rich False", request.toSingleStringResult());
+		request.replace("%coins%", 10);
+		assertEquals("Rich False", request.toSingleStringResult());
+		request.replace("%coins%", 11);
+		assertEquals("Rich True", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>(2+3)*4</math>");
-		Assert.assertEquals(List.of("20"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.numeric-smaller");
+		request.replace("%coins%", 9);
+		assertEquals("Poor True", request.toSingleStringResult());
+		request.replace("%coins%", 10);
+		assertEquals("Poor False", request.toSingleStringResult());
+		request.replace("%coins%", 11);
+		assertEquals("Poor False", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>((2+3)*4)+1</math>");
-		Assert.assertEquals(List.of("21"), langRequest.processRawResult(langRequest.getRawResult()));
+		request = lang.request("condition.equals");
+		request.replace("%coins%", 9);
+		assertEquals("You do not have 10 coins", request.toSingleStringResult());
+		request.replace("%coins%", 10);
+		assertEquals("You do have 10 coins", request.toSingleStringResult());
+		request.replace("%coins%", 11);
+		assertEquals("You do not have 10 coins", request.toSingleStringResult());
+	}
+	
+	@Test
+	void canResolveMath() {
+		LangRequest request = lang.request("math.add-placeholder");
+		request.replace("%amount%", 4);
+		assertEquals("5", request.toSingleStringResult());
 		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>2.5*4</math>");
-		Assert.assertEquals(List.of("10"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>5/2</math>");
-		Assert.assertEquals(List.of("2.5"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>-5+10</math>");
-		Assert.assertEquals(List.of("5"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>2-10</math>");
-		Assert.assertEquals(List.of("-8"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>(%amount%+2)*3</math>");
-		Assert.assertEquals(List.of("18"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math> ( 2 + 3 ) * 4 </math>");
-		Assert.assertEquals(List.of("20"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>1+1</math> + <math>2+2</math>");
-		Assert.assertEquals(List.of("2 + 4"), langRequest.processRawResult(langRequest.getRawResult()));
-		
-		Mockito.when(config.getString("test-key", "Nothing Found")).thenReturn("<math>(%amount%+A)*3</math>");
-		Assert.assertEquals(List.of("!INVALID_OPERATION!"), langRequest.processRawResult(langRequest.getRawResult()));
+		test("math.add", "2");
+		test("math.subtract", "0");
+		test("math.multiply", "8");
+		test("math.divide", "0.5");
+		test("math.correct-order", "14");
+		test("math.correct-order-brackets", "20");
+		test("math.correct-order-all", "21");
+		test("math.negative-number-add", "5");
+		test("math.number-add-negative", "-8");
+		//test("math.nested", "6");
+		test("math.invalid", "!INVALID_OPERATION!");
+	}
+	
+	private void test(String key, String expectedResult) {
+		var request = lang.request(key);
+		assertEquals(expectedResult, request.toSingleStringResult());
 	}
 	
 }

@@ -1,0 +1,40 @@
+templates:
+  currency-display: "You are [if:%currency == %euro% ]European[else]American[/if] because you are using %currency%"
+
+placeholders:
+  euro: "Euro"
+  usd: "USD"
+
+raw:
+  single: "Found Value"
+  list:
+    - "Found Value"
+    - "Found Value 2"
+placeholder:
+  single: "We are using %euro%"
+  list:
+    - "We are using %euro%"
+    - "We are not using %usd%"
+condition:
+  positive: Found [if:%hasValue%]Value[else]Nothing[/if]
+  negative: Found [if:!%hasValue%]Value[else]Nothing[/if]
+  if: Found [if:%isBest%]the best [/if]Value
+  multi-and: "Result [if:%isSet% && !%banned%]OK[else]DENIED[/if]"
+  multi-or: "Result [if:!%isOffline% || !%banned%]OK[else]DENIED[/if]"
+  nested: "[if:%requestStart%]Start [if:!%banned%]Allowed[else]Blocked[/if][/if]"
+  numeric-bigger: "Rich [if:%coins% > 10]True[else]False[/if]"
+  numeric-smaller: "Poor [if:%coins% < 10]True[else]False[/if]"
+  equals: "You do [if:%coins% == 10][else]not [/if]have 10 coins"
+math:
+  add: "<math>1+1</math>"
+  add-placeholder: "<math>1+%amount%</math>"
+  subtract: "<math>1-1</math>"
+  multiply: "<math>2*4</math>"
+  divide: "<math>2/4</math>"
+  correct-order: "<math>2+3*4</math>"
+  correct-order-brackets: "<math>(2+3)*4</math>"
+  correct-order-all: "<math>((2+3)*4)+1</math>"
+  negative-number-add: "<math>-5+10</math>"
+  number-add-negative: "<math>2-10</math>"
+  #nested: "<math><math>1+1</math> + <math>2+2</math></math>"
+  invalid: "<math>1+A</math>"

@@ -50,18 +50,16 @@ Before using the either of the Managers they need to be instantiated by a static
 used before calling any of its methods, preferably in the onLoad Section of the plugin.
 
 ```java
-import com.wonkglorg.utilitylib.config.ConfigManager;
+
 import com.wonkglorg.utilitylib.config.LangManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ExamplePlugin extends JavaPlugin{
-	private final ConfigManager configManager;
 	private final LangManager langManager;
 	
 	@Override
 	
 	public void onLoad() {
-		configManager = ConfigManager.getInstance(this);
 		langManager = LangManager.getInstance(this);
 	}
 	
@@ -77,24 +75,18 @@ public final class ExamplePlugin extends JavaPlugin{
 }
 ```
 
-## ConfigManager
+## Config
 
-Once the instance is created, it can be used to register any valid config
+A Config class is the base of every yml config and can be created using, this will either copy the existing one to the
+location if one is defined in the jar file or add any missing values to the existing config if new values have been added.
 
 ```java
-
-@Override
-public void onEnable() {
-	configManager.add("items", new Config(this, Path.of("subdirectory", "items.yml")));
-}
+new Config(Path.of("subdirectory", "items.yml"));
 ```
-
-Once the instance is asigned it can be called anywhere by its defined name "items" these can be retrieved by the
-ConfigManager#getConfig function
 
 ## Langmanager
 
-Langmanager works very similar but instead of a dedicated name works by a system of Locale defined configs, this defines
+Langmanager handles any created langconfigs to find the best match based on the Locale provided, this defines
 when to show what config files value, a default lang can also be defined to use if no valid lang was found for the
 desired Locale
 
@@ -105,8 +97,8 @@ import com.wonkglorg.utilitylib.config.types.LangConfig;
 
 @Override
 public void onEnable() {
-	langManager.setDefaultLang(new LangConfig(this, "path/to/en-us.yml"), Locale.ENGLISH);
-	langManager.addLanguage(new LangConfig(this, "path/to/de.yml"), Locale.GERMAN);
+	langManager.setDefaultLang(new LangConfig("path/to/en-us.yml"), Locale.ENGLISH);
+	langManager.addLanguage(new LangConfig("path/to/de.yml"), Locale.GERMAN);
 	//or auto detect all lang files from a specific path
 	langManager.addAllLangFilesFromPath(Path.of("path", "to", "langs"));
 }
@@ -121,8 +113,13 @@ Replace resolved any placeholders defined in the lang yml, minimessage component
 extra parsing
 
 Code
+
 ```java
-   lang.request("command.givehead.inventory-full").replace("%target%",target.getName()).sendToAudience(sender);
+   lang.request("command.givehead.inventory-full").
+
+replace("%target%",target.getName()).
+
+sendToAudience(sender);
 ```
 
 Config
@@ -141,12 +138,22 @@ Code
 
 ```java
    boolean hasTarget = target != null;
-   int remainingSlots = 0;
-   lang.request("command.givehead-inventory.full")
-       .replace("%target%", hasTarget ? target.getName() : null)
-       .replace("%remaining-slots%",remainingSlots)
-       .conditional("%hasTarget%",hasTarget) 
-       .sendToAudience(sender);
+int remainingSlots = 0;
+   lang.
+
+request("command.givehead-inventory.full")
+       .
+
+replace("%target%",hasTarget ?target.getName() :null)
+		.
+
+replace("%remaining-slots%",remainingSlots)
+       .
+
+conditional("%hasTarget%",hasTarget) 
+       .
+
+sendToAudience(sender);
 ```
 
 Config
@@ -154,10 +161,9 @@ Config
 ```yml
 command:
   givehead:
-    is-valid-target: [if:%hasTarget%]Adding Head to targets inventory![else]Invalid Target![/if]
-    full-inventory: [if:%remainingSlots%>0]Added Head, the target has<math>%remainingSlots%-1</math> slots free! [else]The inventory of %target% is full![/if]
+    is-valid-target: [ if:%hasTarget% ]Adding Head to targets inventory![else]Invalid Target![/if]
+    full-inventory: [ if:%remainingSlots%>0 ]Added Head, the target has<math>%remainingSlots%-1</math> slots free! [else]The inventory of %target% is full![/if]
 ```
-
 
 ### Math Operations
 
@@ -167,9 +173,15 @@ Code
 
 ```java
    lang.request("command.transactions.result")
-       .replace("%amount-sold%", 20)
-       .replace("%price-per-item%",2)
-       .sendToAudience(sender);
+       .
+
+replace("%amount-sold%",20)
+       .
+
+replace("%price-per-item%",2)
+       .
+
+sendToAudience(sender);
 ```
 
 Config
@@ -179,7 +191,6 @@ command:
   givehead:
     inventory-full: You sold <math>%amount-sold%*%price-per-item%</math>
 ```
-
 
 ## <a name="credits"></a>Credits
 

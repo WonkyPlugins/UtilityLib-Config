@@ -1,7 +1,10 @@
 package com.wonkglorg.utilitylib.config.types;
 
+import com.wonkglorg.utilitylib.config.provider.ResourceProvider;
+import lombok.Getter;
+import lombok.Setter;
 import org.bukkit.configuration.InvalidConfigurationException;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -24,50 +27,82 @@ public class LangConfig extends Config{
 	 *          mod-version: "1.0.0"
 	 * </pre>
 	 * This structure defines that all occurrences of %mod-name% will be replaced by "My Mod Name" and %mod-version% by "1.0.0"
+	 * -- SETTER --
+	 *
+	 * @param placeholderString the path to the placeholder definitions in the lang file (default: "placeholders")
 	 */
+	@Getter
+	@Setter
 	private String placeholderPath = "placeholders";
+	/**
+	 * surrounding character for placeholders
+	 */
+	@Setter
+	@Getter
 	private char placeholderChar = '%';
+	
+	/**
+	 * Path to the templates definitions in the lang file, all keys defined under this path will be added to the automatic replacer map
+	 * (default: "placeholders")
+	 *
+	 * <p>Example:
+	 * <pre>
+	 *     templates:
+	 *  		currency-display: "<aqua>[if:isFree]Free[else]%price% %currency%![/if]"
+	 * </pre>
+	 * This structure gets resolved before and placeholders get replaced allowing for templates of text to be inserted before processing
+	 */
+	@Setter
+	@Getter
+	private String templatePath = "templates";
+	/**
+	 * surrounding character for templates
+	 */
+	@Setter
+	@Getter
+	private char templateChar = '%';
 	/**
 	 * Update request used when the replacer map needs to be updated
 	 */
+	@Setter
+	@Getter
 	private boolean updateRequest = false;
 	/**
 	 * Map of placeholders and their values to replace them by
 	 */
 	private final Map<String, String> replacerMap = new ConcurrentHashMap<>();
+	/**
+	 * Map of templates and their values to replace them by
+	 */
+	private final Map<String, String> templateMap = new ConcurrentHashMap<>();
 	
 	/**
-	 * Constructor for the LangConfig class
+	 * Creates a new file at the specified location or copies an existing one from the resource folder based on the sourcePath,
+	 * if nothing could be found in the sourcePath it creates a new file at the destination. DestinationPath starts relative to execution path.
 	 *
-	 * @param plugin the plugin the config is for
-	 * @param sourcePath the path to the source file
-	 * @param destinationPath the path to the destination file
+	 * @param path path to copy this file to
+	 * @param resourceProvider how to access the provided resource to copy from
 	 */
-	public LangConfig(@NotNull JavaPlugin plugin, @NotNull Path sourcePath, @NotNull Path destinationPath) {
-		super(plugin, sourcePath, destinationPath);
-		syncWithDefaults();
+	public LangConfig(@NotNull Path path, @NotNull ResourceProvider resourceProvider) {
+		super(path, resourceProvider);
 	}
 	
 	/**
-	 * Constructor for the LangConfig class
+	 * Loads a file from the specified location inside the plugins data folder, or tries loading it from the plugins jar from the same position if one exists otherwise create a new file
 	 *
-	 * @param plugin the plugin the config is for
-	 * @param name the name of the file used to determine the path to copy the file from/to
+	 * @param path path of the file to load
 	 */
-	public LangConfig(@NotNull JavaPlugin plugin, @NotNull String name) {
-		super(plugin, name);
-		syncWithDefaults();
-	}
-	
-	/**
-	 * Constructor for the LangConfig class
-	 *
-	 * @param plugin the plugin the config is for
-	 * @param path the path to the file both for input and output (relative to the plugin data folder)
-	 */
-	public LangConfig(@NotNull JavaPlugin plugin, @NotNull Path path) {
+	public LangConfig(@NotNull Plugin plugin, @NotNull Path path) {
 		super(plugin, path);
-		syncWithDefaults();
+	}
+	
+	/**
+	 * Loads a file from the specified location (creates one if non exists)
+	 *
+	 * @param path path of the file to load
+	 */
+	public LangConfig(@NotNull Path path) {
+		super(path);
 	}
 	
 	@Override
@@ -76,9 +111,9 @@ public class LangConfig extends Config{
 		try{
 			checkFile();
 			load(file);
-			logger.log(Level.INFO, "Loaded data from " + name + "!");
+			logger.log(Level.INFO, "Loaded data from " + path + "!");
 		} catch(InvalidConfigurationException | IOException e){
-			logger.log(Level.WARNING, "Error loading data from " + name + "!");
+			logger.log(Level.WARNING, "Error loading data from " + path + "!");
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}
 	}
@@ -90,12 +125,12 @@ public class LangConfig extends Config{
 			checkFile();
 			load(file);
 		} catch(InvalidConfigurationException | IOException e){
-			logger.log(Level.WARNING, "Error loading data from " + name + "!");
+			logger.log(Level.WARNING, "Error loading data from " + path + "!");
 			logger.log(Level.SEVERE, e.getMessage(), e);
 		}
 	}
 	
-	public void updateReplacerMap() {
+	public void updateEntries() {
 		if(this.isSet(this.getPlaceholderPath())){
 			String path = this.getPlaceholderPath();
 			for(Map.Entry<String, Object> entry : getEntries(path).entrySet()){
@@ -105,53 +140,33 @@ public class LangConfig extends Config{
 			}
 		}
 		
+		if(this.isSet(this.getTemplatePath())){
+			String path = this.getTemplatePath();
+			for(Map.Entry<String, Object> entry : getEntries(path).entrySet()){
+				String placeholderValue = entry.getValue().toString();
+				String searchKey = templateChar + entry.getKey() + templateChar;
+				templateMap.put(searchKey, placeholderValue);
+			}
+		}
+		
 		setUpdateRequest(false);
 	}
 	
 	/**
 	 * @return the replacer map of all keys to be replaced and their values
 	 */
-	public Map<String, String> getReplacerMap() {
-		if(isUpdateRequest()) updateReplacerMap();
+	public Map<String, String> getPlaceholderMap() {
+		if(isUpdateRequest()){
+			updateEntries();
+		}
 		return replacerMap;
 	}
 	
-	/**
-	 * @param placeholderString the path to the placeholder definitions in the lang file (default: "placeholders")
-	 */
-	public void setPlaceholderPath(String placeholderString) {
-		this.placeholderPath = placeholderString;
+	public Map<String, String> getTemplateMap() {
+		if(isUpdateRequest()){
+			updateEntries();
+		}
+		return templateMap;
 	}
 	
-	public String getPlaceholderPath() {
-		return placeholderPath;
-	}
-	
-	/**
-	 * @return true if an update of the replacer map is requested but not yet performed
-	 */
-	public boolean isUpdateRequest() {
-		return updateRequest;
-	}
-	
-	/**
-	 * @param updateRequest when set to true updates the replacer map when next requested
-	 */
-	public void setUpdateRequest(boolean updateRequest) {
-		this.updateRequest = updateRequest;
-	}
-	
-	/**
-	 * @return the character used to denote placeholders
-	 */
-	public char getPlaceholderChar() {
-		return placeholderChar;
-	}
-	
-	/**
-	 * @param placeholderChar the character used to denote placeholders
-	 */
-	public void setPlaceholderChar(char placeholderChar) {
-		this.placeholderChar = placeholderChar;
-	}
 }

@@ -3,10 +3,12 @@ package com.wonkglorg.utilitylib.config;
 import com.wonkglorg.utilitylib.config.lang.LangRequest;
 import com.wonkglorg.utilitylib.config.types.Config;
 import com.wonkglorg.utilitylib.config.types.LangConfig;
+import lombok.Getter;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.jetbrains.annotations.Contract;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -17,6 +19,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 /**
  * A Lang manager to handle retrieving and sending per user translatable messages.
@@ -34,25 +37,16 @@ public final class LangManager{
 	/**
 	 * The Logger instance
 	 */
+	@Getter
 	private final Logger logger;
 	/**
 	 * The lang map which contains all the language configs
 	 */
 	private final Map<Locale, LangConfig> langMap = new ConcurrentHashMap<>();
 	/**
-	 * The replacer map which contains all the values to be replaced when called
-	 */
-	private final Map<String, String> replacerMap = new ConcurrentHashMap<>();
-	/**
 	 * The default language
 	 */
 	private Locale defaultLang = Locale.ENGLISH;
-	/**
-	 * The JavaPlugin instance
-	 */
-	private final JavaPlugin plugin;
-	
-	private static LangManager instance;
 	
 	/**
 	 * Maps locales with the same base language name to its language name (to easier assign all relevant names to this from file alone)
@@ -73,28 +67,32 @@ public final class LangManager{
 	 */
 	public static LangManager getInstance(JavaPlugin plugin) {
 		if(!LANG_MANAGER_MAP.containsKey(plugin.namespace())){
-			LANG_MANAGER_MAP.put(plugin.namespace(), new LangManager(plugin));
+			LANG_MANAGER_MAP.put(plugin.namespace(), new LangManager(plugin.getLogger()));
 		}
 		return LANG_MANAGER_MAP.get(plugin.namespace());
+	}
+	
+	/**
+	 * Creates a new instance of the LangManager or returns the already registered one for this plugin
+	 *
+	 * @param namespace the plugin namespace to create the instance for
+	 * @return the created instance
+	 */
+	public static LangManager getInstance(String namespace) {
+		LANG_MANAGER_MAP.computeIfAbsent(namespace.toLowerCase(), k -> new LangManager());
+		return LANG_MANAGER_MAP.get(namespace);
 	}
 	
 	public static boolean hasInstance(JavaPlugin plugin) {
 		return LANG_MANAGER_MAP.containsKey(plugin.namespace());
 	}
 	
-	private LangManager(JavaPlugin plugin) {
-		this.plugin = plugin;
-		logger = plugin.getLogger();
+	public LangManager() {
+		logger = Logger.getLogger(LangManager.class.getName());
 	}
 	
-	/**
-	 * Adds a value to be replaced in the lang file whenever a request is made to retrieve a value, this is global for all requests. to replace a value for any specific request use {@link LangRequest#replace(String, String)}
-	 *
-	 * @param replace the value to be replaced
-	 * @param with the value to replace the original value with
-	 */
-	public void replace(String replace, String with) {
-		replacerMap.put(replace, with);
+	public LangManager(Logger logger) {
+		this.logger = logger;
 	}
 	
 	/**
@@ -205,33 +203,39 @@ public final class LangManager{
 	}
 	
 	/**
-	 * Adds all language files from a given path, the path should be relative to the plugin data folder, the language files should be named after the language they represent as per {@link Locale#getLanguage()} standard naming conventions (this does not copy them from the resources folder should be used to let the plugin user add more languages on their own without code changes)
+	 * Adds all language files from a given path, the path is relative to the plugins data folder, the language files should be named after the language they represent as per {@link Locale#getLanguage()} standard naming conventions (this does not copy them from the resources folder should be used to let the plugin user add more languages on their own without code changes)
+	 */
+	public synchronized void addAllLangFilesFromPath(Plugin plugin, Path path) {
+		addAllLangFilesFromPath(plugin.getDataPath().resolve(path));
+	}
+	
+	/**
+	 * Adds all language files from a given path, the path is relative to the execution folder, the language files should be named after the language they represent as per {@link Locale#getLanguage()} standard naming conventions (this does not copy them from the resources folder should be used to let the plugin user add more languages on their own without code changes)
 	 */
 	public synchronized void addAllLangFilesFromPath(Path path) {
-		File[] files = Path.of(plugin.getDataFolder().getPath(), path.toString()).toFile().listFiles();
-		if(files == null){
-			logger.log(Level.WARNING, "No available language files loaded");
-			return;
-		}
-		for(File file : files){
-			if(!file.isFile()){
-				continue;
-			}
-			if(!file.getName().endsWith(".yml")){
-				continue;
-			}
-			
-			Set<Locale> locales = shortNameToLocaleMapper.get(file.getName().replace(".yml", ""));
-			if(locales == null){
-				logger.log(Level.WARNING, NO_LOCALE_FOUND_FOR_FILE + file.getName());
-				continue;
-			}
-			
-			for(Locale locale : locales){
-				LangConfig langConfig = new LangConfig(plugin, path.resolve(file.getName()).toString());
-				addLanguage(langConfig, locale);
-			}
-			
+		try(Stream<Path> files = Files.list(path)){
+			files.forEach(p -> {
+				if(!Files.isRegularFile(p)){
+					return;
+				}
+				if(!p.toString().endsWith(".yml") || !p.toString().endsWith(".yaml")){
+					return;
+				}
+				
+				String fileName = p.getFileName().toString();
+				Set<Locale> locales = shortNameToLocaleMapper.get(fileName.replace(".yml", ""));
+				if(locales == null){
+					logger.log(Level.WARNING, NO_LOCALE_FOUND_FOR_FILE + fileName);
+					return;
+				}
+				
+				for(Locale locale : locales){
+					LangConfig langConfig = new LangConfig(path);
+					addLanguage(langConfig, locale);
+				}
+			});
+		} catch(IOException e){
+			logger.severe("Unable to load lang files from dir " + e.getMessage());
 		}
 	}
 	
@@ -307,29 +311,5 @@ public final class LangManager{
 	 */
 	public synchronized Map<Locale, LangConfig> getAllLangs() {
 		return langMap;
-	}
-	
-	/**
-	 * Gets a language config by the locale
-	 *
-	 * @param name the name of the language file
-	 * @return the language config or null if not found
-	 */
-	@Contract(pure = true, value = "null -> null")
-	public synchronized LangConfig getLangByFileName(final String name) {
-		for(LangConfig config : langMap.values()){
-			if(config.name().equalsIgnoreCase(name)){
-				return config;
-			}
-		}
-		return null;
-	}
-	
-	public Logger getLogger() {
-		return logger;
-	}
-	
-	public Map<String, String> getReplacerMap() {
-		return replacerMap;
 	}
 }

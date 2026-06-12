@@ -4,6 +4,7 @@ import com.wonkglorg.utilitylib.config.LangManager;
 import com.wonkglorg.utilitylib.config.lang.parser.BooleanConditionParser;
 import com.wonkglorg.utilitylib.config.lang.parser.MathParser;
 import com.wonkglorg.utilitylib.config.types.LangConfig;
+import lombok.Getter;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
@@ -29,7 +30,7 @@ import java.util.stream.Collectors;
 @SuppressWarnings("unused")
 public class LangRequest{
 	
-	private static final Pattern CONDITIONAL_PATTERN = Pattern.compile("<if:(.*?)>(.*?)(?:<else>(.*?))?</if>", Pattern.DOTALL);
+	private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 	
 	private static final Pattern MATH_PATTERN = Pattern.compile("<math>(.*?)</math>");
 	
@@ -41,6 +42,7 @@ public class LangRequest{
 	/**
 	 * The locale used for the initial request
 	 */
+	@Getter
 	private final Locale locale;
 	/**
 	 * The key used for the initial request
@@ -240,10 +242,6 @@ public class LangRequest{
 		return toResolve;
 	}
 	
-	public Locale getLocale() {
-		return locale;
-	}
-	
 	/**
 	 * Resolve any math operations defined in this input
 	 *
@@ -287,6 +285,12 @@ public class LangRequest{
 	 * @return modified input
 	 */
 	private String applyPlaceHolders(String input) {
+		if(lastAccessedConfig != null){
+			for(var template : lastAccessedConfig.getTemplateMap().entrySet()){
+				input = input.replace(template.getKey(), template.getValue());
+			}
+		}
+		
 		//per request replacers
 		if(!replacements.isEmpty()){
 			for(var replacement : replacements.entrySet()){
@@ -296,14 +300,9 @@ public class LangRequest{
 		
 		//per lang replacers
 		if(lastAccessedConfig != null){
-			for(var replacement : lastAccessedConfig.getReplacerMap().entrySet()){
+			for(var replacement : lastAccessedConfig.getPlaceholderMap().entrySet()){
 				input = input.replace(replacement.getKey(), replacement.getValue());
 			}
-		}
-		
-		//global replacers
-		for(var replacement : langManager.getReplacerMap().entrySet()){
-			input = input.replace(replacement.getKey(), replacement.getValue());
 		}
 		
 		return input;
@@ -511,7 +510,7 @@ public class LangRequest{
 	 */
 	
 	public List<Component> toComponent() {
-		return toComponent(MiniMessage.miniMessage()::deserialize);
+		return toComponent(MINI_MESSAGE::deserialize);
 	}
 	
 	/**
@@ -519,7 +518,7 @@ public class LangRequest{
 	 */
 	
 	public Component toSingleComponent() {
-		return toSingleComponent(MiniMessage.miniMessage()::deserialize);
+		return toSingleComponent(MINI_MESSAGE::deserialize);
 	}
 	
 	/**
@@ -529,7 +528,7 @@ public class LangRequest{
 	 */
 	
 	public void sendToAudience(@NotNull Audience audience) {
-		sendToAudience(audience, MiniMessage.miniMessage()::deserialize);
+		sendToAudience(audience, MINI_MESSAGE::deserialize);
 	}
 	
 	/**
@@ -545,6 +544,24 @@ public class LangRequest{
 		} else {
 			toComponent(toComponent).forEach(audience::sendMessage);
 		}
+	}
+	
+	/**
+	 * Returns the processed result as a string (does not resolve component placeholders nor parse minimessage
+	 *
+	 * @return the resolved result
+	 */
+	public List<String> toStringResult() {
+		return processRawResult(getRawResult());
+	}
+	
+	/**
+	 * Returns the processed result as a single string (does not resolve component placeholders nor parse minimessage
+	 *
+	 * @return the resolved result
+	 */
+	public String toSingleStringResult() {
+		return processRawResult(getRawResultSingleLine());
 	}
 	
 	private String formatNumber(double value) {
