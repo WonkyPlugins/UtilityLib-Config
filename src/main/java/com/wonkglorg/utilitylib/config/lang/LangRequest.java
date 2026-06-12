@@ -51,7 +51,7 @@ public class LangRequest{
 	 */
 	private final String defaultValue;
 	/**
-	 * Map of all replacements applied to this request
+	 * Map of all replacements to apply to this request
 	 */
 	private final Map<String, String> replacements = new HashMap<>();
 	
@@ -60,6 +60,11 @@ public class LangRequest{
 	 * Pattern for component replacers
 	 */
 	private Pattern pattern;
+	
+	/**
+	 * Last Lang Config used to resolve this request (can change on subsequent calls depending on the Locale requested)
+	 */
+	private LangConfig lastAccessedConfig;
 	/**
 	 * Weather or not the initially provided locale should be forced. If false certain methods may re request the message in the given language such as {@link #sendToAudience(Audience)}
 	 */
@@ -163,15 +168,12 @@ public class LangRequest{
 		var configOptional = langManager.getAnyValidLangConfig(locale);
 		if(configOptional.isPresent()){
 			config = configOptional.get();
+			lastAccessedConfig = config;
 		} else {
 			logger.log(Level.INFO, "No lang file could be loaded for request: " + key + " using default value!");
 			List<String> arrayList = new ArrayList<>();
 			arrayList.add(defaultValue);
 			return arrayList;
-		}
-		
-		if(config.isUpdateRequest()){
-			config.updateReplacerMap();
 		}
 		
 		if(!config.contains(key)){
@@ -204,13 +206,10 @@ public class LangRequest{
 		var configOptional = langManager.getAnyValidLangConfig(locale);
 		if(configOptional.isPresent()){
 			config = configOptional.get();
+			lastAccessedConfig = config;
 		} else {
 			logger.log(Level.INFO, "No lang file could be loaded for request: " + key + " using default value!");
 			return defaultValue;
-		}
-		
-		if(config.isUpdateRequest()){
-			config.updateReplacerMap();
 		}
 		
 		if(!config.contains(key)){
@@ -288,17 +287,25 @@ public class LangRequest{
 	 * @return modified input
 	 */
 	private String applyPlaceHolders(String input) {
+		//per request replacers
+		if(!replacements.isEmpty()){
+			for(var replacement : replacements.entrySet()){
+				input = input.replace(replacement.getKey(), replacement.getValue());
+			}
+		}
+		
+		//per lang replacers
+		if(lastAccessedConfig != null){
+			for(var replacement : lastAccessedConfig.getReplacerMap().entrySet()){
+				input = input.replace(replacement.getKey(), replacement.getValue());
+			}
+		}
+		
 		//global replacers
 		for(var replacement : langManager.getReplacerMap().entrySet()){
 			input = input.replace(replacement.getKey(), replacement.getValue());
 		}
-		if(replacements.isEmpty()){
-			return input;
-		}
-		//per request replacers
-		for(var replacement : replacements.entrySet()){
-			input = input.replace(replacement.getKey(), replacement.getValue());
-		}
+		
 		return input;
 	}
 	
