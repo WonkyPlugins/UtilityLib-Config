@@ -99,7 +99,7 @@ class LangRequestTest{
 	}
 	
 	@Test
-	void canReplaceConditionals() {
+	void canReplaceConditionals() { //NOSONAR
 		LangRequest request = lang.request("condition.positive");
 		request.replace("%hasValue%", true);
 		assertEquals("Found Value", request.toSingleStringResult());
@@ -172,6 +172,19 @@ class LangRequestTest{
 		assertEquals("Poor False", request.toSingleStringResult());
 		
 		request = lang.request("condition.equals");
+		request.replace("%coins%", 9);
+		assertEquals("You do not have 10 coins", request.toSingleStringResult());
+		request.replace("%coins%", 10);
+		assertEquals("You do have 10 coins", request.toSingleStringResult());
+		request.replace("%coins%", 11);
+		assertEquals("You do not have 10 coins", request.toSingleStringResult());
+		
+		request = lang.request("condition.equals-no-space");
+		request.replace("%coins%", 10);
+		assertEquals("You do have 10 coins", request.toSingleStringResult());
+		
+		
+		request = lang.request("condition.not-equals");
 		request.replace("%coins%", 9);
 		assertEquals("You do not have 10 coins", request.toSingleStringResult());
 		request.replace("%coins%", 10);

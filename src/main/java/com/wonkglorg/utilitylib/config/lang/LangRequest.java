@@ -1,7 +1,7 @@
 package com.wonkglorg.utilitylib.config.lang;
 
 import com.wonkglorg.utilitylib.config.LangManager;
-import com.wonkglorg.utilitylib.config.lang.parser.BooleanConditionParser;
+import com.wonkglorg.utilitylib.config.lang.parser.bool.BooleanConditionParser;
 import com.wonkglorg.utilitylib.config.lang.parser.MathParser;
 import com.wonkglorg.utilitylib.config.types.LangConfig;
 import lombok.Getter;
