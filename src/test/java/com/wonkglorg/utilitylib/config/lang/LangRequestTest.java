@@ -1,9 +1,9 @@
 package com.wonkglorg.utilitylib.config.lang;
 
 import com.wonkglorg.utilitylib.config.LangManager;
+import com.wonkglorg.utilitylib.config.mapping.MappingConfig;
 import com.wonkglorg.utilitylib.config.types.LangConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,21 +11,14 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
 class LangRequestTest{
 	
 	private LangManager lang;
-	private LangConfig english;
-	private LangConfig german;
 	
 	@BeforeEach
 	void setUp() {
-		lang = new LangManager();
-		english = new LangConfig(Path.of("test", "request-test.yml"));
-		german = new LangConfig(Path.of("test", "request-test-german.yml"));
-		lang.addLanguage(english, Locale.ENGLISH);
-		lang.addLanguage(german, Locale.GERMAN);
+		lang = new LangManager(new MappingConfig(Path.of("test", "mapping-config.yml")));
 	}
 	
 	@Test
@@ -58,27 +51,17 @@ class LangRequestTest{
 	
 	@Test
 	void canPickRightConfig() {
-		LangManager tempLang = new LangManager();
+		assertEquals(3, lang.getAllLangs().size());
 		
-		assertEquals(Optional.empty(), tempLang.getAnyValidLangConfig(Locale.ENGLISH));
-		
-		tempLang.addLanguage(english, Locale.ENGLISH);
-		tempLang.addLanguage(german, Locale.GERMAN, Locale.GERMANY);
-		assertEquals(3, tempLang.getAllLangs().size());
-		
-		assertEquals(Optional.of(english), tempLang.getAnyValidLangConfig(Locale.ENGLISH));
-		assertEquals(Optional.of(german), tempLang.getAnyValidLangConfig(Locale.GERMAN));
-		assertEquals(Optional.of(german), tempLang.getAnyValidLangConfig(Locale.GERMANY));
-		
-		//returns any config it can find
-		assertNotEquals(Optional.empty(), tempLang.getAnyValidLangConfig(Locale.FRENCH));
-		tempLang.setDefaultLang(Locale.ENGLISH);
-		//returns the english one
-		assertEquals(Optional.of(english), tempLang.getAnyValidLangConfig(Locale.FRENCH));
+		assertEquals("Wert Gefunden", lang.request(Locale.GERMAN, "raw.single").toSingleStringResult());
+		assertEquals("Found Value", lang.request(Locale.ENGLISH, "raw.single").toSingleStringResult());
+		assertEquals("Found Value", lang.request(Locale.CHINESE, "raw.single").toSingleStringResult());
 	}
 	
 	@Test
 	void canIdentifyLangSpecificPlaceholdersAndTemplates() {
+		LangConfig english = lang.getAnyValidLangConfig(Locale.ENGLISH).get(); //NOSONAR
+		
 		assertEquals(1, english.getTemplateMap().size());
 		assertEquals(2, english.getPlaceholderMap().size());
 		assertTrue(english.getTemplateMap().containsKey("%currency-display%"));
@@ -182,7 +165,6 @@ class LangRequestTest{
 		request = lang.request("condition.equals-no-space");
 		request.replace("%coins%", 10);
 		assertEquals("You do have 10 coins", request.toSingleStringResult());
-		
 		
 		request = lang.request("condition.not-equals");
 		request.replace("%coins%", 9);

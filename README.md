@@ -78,7 +78,8 @@ public final class ExamplePlugin extends JavaPlugin{
 ## Config
 
 A Config class is the base of every yml config and can be created using, this will either copy the existing one to the
-location if one is defined in the jar file or add any missing values to the existing config if new values have been added.
+location if one is defined in the jar file or add any missing values to the existing config if new values have been
+added.
 
 ```java
 new Config(Path.of("subdirectory", "items.yml"));
@@ -86,23 +87,31 @@ new Config(Path.of("subdirectory", "items.yml"));
 
 ## Langmanager
 
-Langmanager handles any created langconfigs to find the best match based on the Locale provided, this defines
-when to show what config files value, a default lang can also be defined to use if no valid lang was found for the
-desired Locale
+Langmanager handles any defined langconfigs to find the best match based on the Locale provided. Langconfigs are defined
+inside:
 
-```java
+`plugin-datafolder/utility-lib/config/mappings.yml` this file will be automatically created on plugin startup.
 
-import com.wonkglorg.utilitylib.config.LangManager;
-import com.wonkglorg.utilitylib.config.types.LangConfig;
+```yml
+lang:
+  default-lang: en
 
-@Override
-public void onEnable() {
-	langManager.setDefaultLang(new LangConfig("path/to/en-us.yml"), Locale.ENGLISH);
-	langManager.addLanguage(new LangConfig("path/to/de.yml"), Locale.GERMAN);
-	//or auto detect all lang files from a specific path
-	langManager.addAllLangFilesFromPath(Path.of("path", "to", "langs"));
+  files:
+    - path: test/lang/en.yml
+      locales:
+        - en
+
+    - path: test/lang/de.yml
+      locales:
+        - de
+        - de_AT
 }
 ```
+
+paths support the placeholder `%plugin-dir%` to reference the current plugins data folder, otherwise all paths are
+relative to the execution directory
+
+### Request
 
 To retrieve a value the Langmanager#request function can be used which determines the best value to return based on
 inputs and allows further modifying the request. each config entry can be a single value or a list of values.
@@ -115,11 +124,9 @@ extra parsing
 Code
 
 ```java
-   lang.request("command.givehead.inventory-full").
-
-replace("%target%",target.getName()).
-
-sendToAudience(sender);
+   lang.request("command.givehead.inventory-full")
+       .replace("%target%",target.getName())
+       .sendToAudience(sender);
 ```
 
 Config
@@ -139,21 +146,11 @@ Code
 ```java
    boolean hasTarget = target != null;
 int remainingSlots = 0;
-   lang.
-
-request("command.givehead-inventory.full")
-       .
-
-replace("%target%",hasTarget ?target.getName() :null)
-		.
-
-replace("%remaining-slots%",remainingSlots)
-       .
-
-conditional("%hasTarget%",hasTarget) 
-       .
-
-sendToAudience(sender);
+   lang.request("command.givehead-inventory.full")
+       .replace("%target%",hasTarget ? target.getName() :null)
+       .replace("%remaining-slots%",remainingSlots)
+       .replace("%hasTarget%",hasTarget) 
+       .sendToAudience(sender);
 ```
 
 Config
@@ -173,15 +170,9 @@ Code
 
 ```java
    lang.request("command.transactions.result")
-       .
-
-replace("%amount-sold%",20)
-       .
-
-replace("%price-per-item%",2)
-       .
-
-sendToAudience(sender);
+       .replace("%amount-sold%",20)
+       .replace("%price-per-item%",2)
+       .sendToAudience(sender);
 ```
 
 Config

@@ -16,21 +16,6 @@ import java.util.logging.Level;
 @SuppressWarnings("unused")
 public class LangConfig extends Config{
 	
-	/**
-	 * Path to the placeholder definitions in the lang file, all keys defined under this path will be added to the automatic replacer map
-	 * (default: "placeholders")
-	 *
-	 * <p>Example:
-	 * <pre>
-	 *     placeholders:
-	 *          mod-name: "My Mod Name"
-	 *          mod-version: "1.0.0"
-	 * </pre>
-	 * This structure defines that all occurrences of %mod-name% will be replaced by "My Mod Name" and %mod-version% by "1.0.0"
-	 * -- SETTER --
-	 *
-	 * @param placeholderString the path to the placeholder definitions in the lang file (default: "placeholders")
-	 */
 	@Getter
 	@Setter
 	private String placeholderPath = "placeholders";

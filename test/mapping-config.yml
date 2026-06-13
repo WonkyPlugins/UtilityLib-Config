@@ -1,0 +1,12 @@
+lang:
+  default-lang: en
+
+  files:
+    - path: test/lang/en.yml
+      locales:
+        - en
+
+    - path: test/lang/de.yml
+      locales:
+        - de
+        - de_AT
