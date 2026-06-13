@@ -70,7 +70,7 @@ public class MappingConfig extends Config{
 			
 			String pathString = String.valueOf(file.get("path"));
 			
-			Path path = Path.of(plugin == null ? pathString : pathString.replace("%plugin-dir%", plugin.getDataPath().toString()));
+			Path outputPath = Path.of(plugin == null ? pathString : pathString.replace("%plugin-dir%", plugin.getDataPath().toString()));
 			
 			List<Locale> locales = new ArrayList<>();
 			
@@ -85,12 +85,12 @@ public class MappingConfig extends Config{
 				}
 			}
 			
-			result.add(new LangMapping(path, locales));
+			result.add(new LangMapping(plugin, Path.of(pathString.replace("%plugin-dir%", "")), outputPath, locales));
 		}
 		
 		return result;
 	}
 	
-	public record LangMapping(Path path, List<Locale> locales){}
+	public record LangMapping(Plugin plugin, Path resourcePath, Path outputPath, List<Locale> locales){}
 	
 }

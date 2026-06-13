@@ -2,7 +2,7 @@ package com.wonkglorg.utilitylib.config;
 
 import com.wonkglorg.utilitylib.config.lang.LangRequest;
 import com.wonkglorg.utilitylib.config.mapping.MappingConfig;
-import com.wonkglorg.utilitylib.config.provider.ResourceProvider;
+import com.wonkglorg.utilitylib.config.provider.PluginResourceProvider;
 import com.wonkglorg.utilitylib.config.types.Config;
 import com.wonkglorg.utilitylib.config.types.LangConfig;
 import lombok.Getter;
@@ -10,7 +10,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -90,6 +89,7 @@ public final class LangManager{
 		this.mappingConfig = mappingConfig;
 		loadMappings();
 	}
+	
 	/**
 	 * Adds a language to the lang manager definition
 	 *
@@ -149,7 +149,14 @@ public final class LangManager{
 		langMap.clear();
 		
 		for(var entry : mappingConfig.getPaths()){
-			LangConfig config = new LangConfig(entry.path());
+			LangConfig config;
+			if(entry.plugin() != null){
+				config = new LangConfig(entry.outputPath(),new PluginResourceProvider(entry.plugin(),entry.resourcePath()));
+			} else {
+				config = new LangConfig(entry.outputPath(),
+						() -> this.getClass().getClassLoader().getResourceAsStream(entry.resourcePath().toString().replace(File.separatorChar, '/')));
+			}
+			
 			config.silentLoad();
 			addLanguage(config, entry.locales());
 		}
